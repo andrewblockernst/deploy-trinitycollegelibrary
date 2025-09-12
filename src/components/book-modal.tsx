@@ -37,7 +37,7 @@ export default function BookDetailModal({ book, isOpen, onClose }: BookDetailMod
         } finally {
             setIsLoadingBook(false)
         }
-    }, [book])
+    }, [book.id]) // Only depend on book.id, not the whole book object
 
     const loadReviews = useCallback(async () => {
         setIsLoadingReviews(true)
@@ -64,7 +64,7 @@ export default function BookDetailModal({ book, isOpen, onClose }: BookDetailMod
         } catch (error) {
             console.error('Error checking favorite:', error)
         }
-    }, [session, book.id])
+    }, [session?.user, book.id]) // Only depend on user existence and book.id
 
     const toggleFavorite = async () => {
         if (!session?.user) {
@@ -121,7 +121,7 @@ export default function BookDetailModal({ book, isOpen, onClose }: BookDetailMod
         return () => {
             document.body.style.overflow = 'unset'
         }
-    }, [isOpen, book.id, loadBookDetails, loadReviews, checkFavorite])
+    }, [isOpen, book.id]) // Removed function dependencies to prevent infinite loops
 
     const calculateAverageRating = () => {
         if (reviews.length === 0) return 0
@@ -185,6 +185,7 @@ export default function BookDetailModal({ book, isOpen, onClose }: BookDetailMod
             {/* Backdrop con blur */}
             <div 
                 className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+                data-testid="modal-backdrop"
                 onClick={onClose}
             />
             
@@ -274,6 +275,7 @@ export default function BookDetailModal({ book, isOpen, onClose }: BookDetailMod
                                             <Star
                                                 key={star}
                                                 size={28}
+                                                data-testid="star"
                                                 className={`${
                                                     star <= averageRating
                                                         ? 'text-yellow-400 fill-yellow-400'

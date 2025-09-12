@@ -8,22 +8,16 @@ vi.mock('next-auth/react', () => ({
   useSession: mockUseSession,
 }))
 
-// Mock actions
-vi.mock('../../../app/actions/reviews.action', () => ({
-  fetchBookById: vi.fn().mockResolvedValue({
-    id: 'test-book-id',
-    volumeInfo: {
-      title: 'Test Book Title',
-      authors: ['Test Author'],
-      description: 'This is a much longer description that should trigger the expansion functionality. '.repeat(20),
-      imageLinks: {
-        large: 'https://example.com/large.jpg',
-        medium: 'https://example.com/medium.jpg',
-        thumbnail: 'https://example.com/thumbnail.jpg',
-      },
-    },
-  }),
-}))
+// Mock actions module first, before any imports
+vi.mock('@/app/actions/reviews.action', () => {
+  const mockFetchBookById = vi.fn()
+  return {
+    fetchBookById: mockFetchBookById,
+  }
+})
+
+// Import the mocked function after the mock is defined  
+const mockFetchBookById = vi.mocked(await import('@/app/actions/reviews.action')).fetchBookById
 
 // Mock components
 vi.mock('@/components/review-form', () => ({
@@ -48,9 +42,6 @@ vi.mock('next/image', () => ({
     <div data-testid="book-image" data-src={src} data-alt={alt} {...props} />
   ),
 }))
-
-// Mock fetch
-global.fetch = vi.fn()
 
 describe('BookDetailModal Component', () => {
   const mockBook = {
@@ -77,6 +68,21 @@ describe('BookDetailModal Component', () => {
     vi.clearAllMocks()
     global.alert = vi.fn()
 
+    // Configure the mock function to return our test data
+    mockFetchBookById.mockResolvedValue({
+      id: 'test-book-id',
+      volumeInfo: {
+        title: 'Test Book Title',
+        authors: ['Test Author'],
+        description: 'This is a much longer description that should trigger the expansion functionality. '.repeat(20),
+        imageLinks: {
+          large: 'https://example.com/large.jpg',
+          medium: 'https://example.com/medium.jpg',
+          thumbnail: 'https://example.com/thumbnail.jpg',
+        },
+      },
+    })
+
     // Setup default authenticated session
     mockUseSession.mockReturnValue({
       data: {
@@ -87,11 +93,8 @@ describe('BookDetailModal Component', () => {
       update: vi.fn()
     })
 
-    // Mock is already set up at the top
-
-    // Mock fetch for reviews
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(global.fetch as any).mockImplementation((url: string) => {
+    // Mock fetch for reviews and favorites with vi.stubGlobal
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
       if (url.includes('/api/reviews')) {
         return Promise.resolve({
           ok: true,
@@ -108,7 +111,7 @@ describe('BookDetailModal Component', () => {
         })
       }
       return Promise.reject(new Error('Unknown URL'))
-    })
+    }))
   })
 
   afterEach(() => {
@@ -216,8 +219,7 @@ describe('BookDetailModal Component', () => {
 
     it('should handle book loading error gracefully', async () => {
       // Mock error for fetchBookById
-      const mockModule = vi.mocked(await import('../../../app/actions/reviews.action'))
-      mockModule.fetchBookById.mockRejectedValue(new Error('Network error'))
+      mockFetchBookById.mockRejectedValueOnce(new Error('Network error'))
 
       render(<BookDetailModal {...mockProps} />)
 
